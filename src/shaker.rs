@@ -1,44 +1,51 @@
 use std::future::Future;
-use std::io::Result;
-use std::{collections::HashMap, net::SocketAddr};
+use std::io::{Error, Result};
+use std::collections::HashMap;
 
-use tokio::io::AsyncWriteExt;
-use tokio::net::TcpListener;
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufStream};
+use tokio::net::{TcpListener, ToSocketAddrs};
+
+const MOTD: &str = "Ja Moin";
 
 pub trait Shaker {
-    fn new(socket_addr: impl Into<SocketAddr>) -> Self;
-    fn get_motd(&self) -> String;
-    fn listen(&mut self) -> impl Future<Output = Result<()>>;
+    fn new() -> Self;
+    fn listen(&mut self, socket_addr: impl ToSocketAddrs) -> impl Future<Output = Result<()>>;
 }
 
 pub struct DefaultShaker {
-    motd: String,
     password_map: HashMap<String, String>,
-    socket_addr: SocketAddr,
 }
 
 impl Shaker for DefaultShaker {
-    fn get_motd(&self) -> String {
-        self.motd.clone()
-    }
-
-    fn listen(&mut self) -> impl Future<Output = Result<()>> {
+    fn listen(&mut self, socket_addr:impl ToSocketAddrs) -> impl Future<Output = Result<()>> {
         async {
-            let listener = TcpListener::bind(self.socket_addr).await?;
+            let motd_packet = format!("MOTD {}\n", MOTD);
+            let listener = TcpListener::bind(socket_addr).await?;
 
             loop {
                 let (mut socket, _) = listener.accept().await?;
-                socket.write(b"Hi!").await?;
-                socket.flush().await?;
+                let mut stream = BufStream::new(&mut socket);
+                stream.write(motd_packet.clone().as_bytes()).await?;
+                stream.flush().await?;
+
+                let mut line = String::new();
+                stream.read_line(&mut line).await?;
+                println!("Received: {}", line);
             }
         }
     }
 
-    fn new(socket_addr: impl Into<SocketAddr>) -> Self {
+    fn new() -> Self {
         Self {
-            motd: "Ja Moin".into(),
             password_map: HashMap::new(),
-            socket_addr: socket_addr.into(),
         }
     }
+}
+
+fn packet_decoder(packet: &str) -> Result<(String, Vec<String>, Error)> {
+    let mut parts = packet.split_whitespace();
+    let command = parts.next().ok_or_else(|| std::io::Error::from(std::io::ErrorKind::InvalidData))?;
+    let command = command.to_uppercase();
+    let args = parts.collect::<Vec<&str>>();
+    Ok((command, args))
 }

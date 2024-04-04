@@ -1,5 +1,8 @@
 use std::collections::HashMap;
-use tokio::sync::mpsc::{self, Receiver, Sender, UnboundedSender};
+use tokio::{
+    sync::mpsc::{Receiver, UnboundedSender},
+    task::JoinHandle,
+};
 
 mod client;
 mod shaker;
@@ -12,17 +15,18 @@ struct Envelope<T> {
     msg: T,
 }
 
-struct Server<ServerMsg, ClientMsg> {
+pub struct Server<ServerMsg, ClientMsg> {
     clients: HashMap<u32, UnboundedSender<ServerMsg>>,
+    client_threads: HashMap<u32, JoinHandle<()>>,
     inbox: Receiver<Envelope<ClientMsg>>,
     next_client_id: u32,
 }
 
-impl<SMsg, CMsg> Server<SMsg, CMsg> {
-    fn new() -> Self {
-        // let (sender, receiver) = mpsc::unbounded_channel();
+impl<ServerMsg, ClientMsg> Server<ServerMsg, ClientMsg> {
+    pub fn new() -> Self {
         Self {
             clients: HashMap::new(),
+            client_threads: HashMap::new(),
             next_client_id: 0,
             inbox: todo!(),
         }
@@ -33,9 +37,16 @@ impl<SMsg, CMsg> Server<SMsg, CMsg> {
         self.next_client_id - 1
     }
 
-    fn insert_client(&mut self, client: UnboundedSender<SMsg>) -> u32 {
+    pub fn insert_client(
+        &mut self,
+        client: impl Client<ServerMsg, ClientMsg> + Send + 'static,
+    ) -> u32 {
         let id = self.bump_id();
-        self.clients.insert(id, client);
+        self.clients.insert(id, client.get_sender());
+
+        let thread = tokio::spawn(async { client.run().await });
+        self.client_threads.insert(id, thread);
+
         id
     }
 }

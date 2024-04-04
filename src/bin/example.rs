@@ -1,6 +1,14 @@
-use cone::{DefaultShaker, Shaker};
+use cone::{DefaultShaker, Server, Shaker};
+
+enum ServerMessage {
+    Motd(),
+}
+
+enum ClientMessage {
+    Login(String, String),
+}
 
 #[tokio::main]
 async fn main() {
-    let shaker = DefaultShaker::new("0.0.0.0:1312");
+    let server = Server::<ServerMessage, ClientMessage>::new();
 }
