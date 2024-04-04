@@ -5,8 +5,8 @@ mod client;
 mod conman;
 mod ext;
 
-pub use conman::*;
 pub use client::*;
+pub use conman::*;
 
 pub struct Server<P>
 where
