@@ -41,11 +41,3 @@ impl Shaker for DefaultShaker {
         }
     }
 }
-
-fn packet_decoder(packet: &str) -> Result<(String, Vec<String>, Error)> {
-    let mut parts = packet.split_whitespace();
-    let command = parts.next().ok_or_else(|| std::io::Error::from(std::io::ErrorKind::InvalidData))?;
-    let command = command.to_uppercase();
-    let args = parts.collect::<Vec<&str>>();
-    Ok((command, args))
-}
