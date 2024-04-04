@@ -1,52 +1,40 @@
-use std::collections::HashMap;
-use tokio::{
-    sync::mpsc::{Receiver, UnboundedSender},
-    task::JoinHandle,
-};
+use std::{collections::HashMap, fmt::Display, str::FromStr};
+use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
 mod client;
-mod shaker;
+mod conman;
+mod ext;
 
+pub use conman::*;
 pub use client::*;
-pub use shaker::*;
 
-struct Envelope<T> {
-    source: u32,
-    msg: T,
-}
-
-pub struct Server<ServerMsg, ClientMsg> {
-    clients: HashMap<u32, UnboundedSender<ServerMsg>>,
-    client_threads: HashMap<u32, JoinHandle<()>>,
-    inbox: Receiver<Envelope<ClientMsg>>,
+pub struct Server<P>
+where
+    P: FromStr + Display,
+{
+    clients: HashMap<u32, Client<P>>,
+    receiver: UnboundedReceiver<ConmanSignal<P>>,
     next_client_id: u32,
 }
 
-impl<ServerMsg, ClientMsg> Server<ServerMsg, ClientMsg> {
-    pub fn new() -> Self {
-        Self {
-            clients: HashMap::new(),
-            client_threads: HashMap::new(),
+impl<P> Server<P>
+where
+    P: FromStr + Display,
+{
+    pub fn new() -> (UnboundedSender<ConmanSignal<P>>, Self) {
+        let (sender, receiver) = mpsc::unbounded_channel();
+        let server = Self {
             next_client_id: 0,
-            inbox: todo!(),
-        }
+            receiver,
+            clients: HashMap::new(),
+        };
+
+        (sender, server)
     }
 
-    fn bump_id(&mut self) -> u32 {
+    pub fn insert_client(&mut self, client: impl Into<Client<P>>) -> u32 {
+        self.clients.insert(self.next_client_id, client.into());
         self.next_client_id += 1;
         self.next_client_id - 1
-    }
-
-    pub fn insert_client(
-        &mut self,
-        client: impl Client<ServerMsg, ClientMsg> + Send + 'static,
-    ) -> u32 {
-        let id = self.bump_id();
-        self.clients.insert(id, client.get_sender());
-
-        let thread = tokio::spawn(async { client.run().await });
-        self.client_threads.insert(id, thread);
-
-        id
     }
 }

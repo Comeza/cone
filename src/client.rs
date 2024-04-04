@@ -1,44 +1,32 @@
-use std::{future::Future, net::SocketAddr};
+use std::fmt::Display;
+use std::marker::PhantomData;
+use std::str::FromStr;
 
-use tokio::{
-    io::BufStream,
-    net::TcpStream,
-    sync::mpsc::{UnboundedReceiver, UnboundedSender},
-};
+use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite};
+use tokio::{io::BufStream, net::TcpStream};
 
-use crate::Envelope;
-
-pub trait Client<ServerMsg, ClientMsg> {
-    fn send_to_host(&self, msg: ClientMsg);
-    fn get_sender(&self) -> UnboundedSender<ServerMsg>;
-    fn run(self) -> impl Future<Output = ()> + Send;
-}
-
-struct DefaultClient<ServerMsg, ClientMsg> {
-    id: u32,
-    addr: SocketAddr,
+pub struct Client<P>
+where
+    P: FromStr + Display,
+{
     stream: BufStream<TcpStream>,
-    /// Messages from the Server
-    receiver: UnboundedReceiver<ServerMsg>,
-
-    host_sender: UnboundedSender<ServerMsg>,
-    /// Messages from the client
-    sender: UnboundedSender<Envelope<ClientMsg>>,
+    _pd: PhantomData<P>,
 }
 
-impl<ServerMsg, ClientMsg> Client<ServerMsg, ClientMsg> for DefaultClient<ServerMsg, ClientMsg> {
-    fn send_to_host(&self, msg: ClientMsg) {
-        let _ = self.sender.send(Envelope {
-            source: self.id,
-            msg,
-        });
+impl<P> Client<P>
+where
+    P: FromStr + Display,
+{
+    pub fn new(stream: BufStream<TcpStream>) -> Self {
+        Self {
+            stream,
+            _pd: PhantomData,
+        }
     }
 
-    fn run(self) -> impl Future<Output = ()> {
-        async {}
-    }
-
-    fn get_sender(&self) -> UnboundedSender<ServerMsg> {
-        self.host_sender.clone()
+    pub async fn read_next(&mut self) -> std::io::Result<String> {
+        let mut buf = String::new();
+        let _ = self.stream.read_line(&mut buf).await?;
+        Ok(buf.trim_end().into())
     }
 }
