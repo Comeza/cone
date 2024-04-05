@@ -1,5 +1,6 @@
 use std::{collections::HashMap, fmt::Display, str::FromStr, sync::Arc, time::Duration};
 
+use serde::{Deserialize, Serialize};
 use tokio::{
     io::BufStream,
     net::{TcpListener, ToSocketAddrs},
@@ -10,14 +11,14 @@ use crate::{ext::SplitUtil, Client};
 
 pub enum ConmanSignal<P>
 where
-    P: FromStr + Display,
+    P: Serialize + Deserialize<'static>,
 {
     JoinRequest(Client<P>),
 }
 
 pub struct Conman<P>
 where
-    P: FromStr + Display + 'static,
+    P: Serialize + Deserialize<'static> + 'static,
 {
     channel: UnboundedSender<ConmanSignal<P>>,
     users: HashMap<String, String>,
@@ -27,7 +28,7 @@ where
 
 impl<P> Conman<P>
 where
-    P: FromStr + Display + Send + 'static,
+    P: Serialize + Deserialize<'static> + Send + 'static,
 {
     pub fn new(channel: UnboundedSender<ConmanSignal<P>>) -> Self {
         Self {

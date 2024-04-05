@@ -1,7 +1,9 @@
 use std::{fmt::Display, str::FromStr, time::Duration};
 
 use cone::{Conman, Server};
+use serde::{Deserialize, Serialize};
 
+#[derive(Serialize, Deserialize)]
 enum Protocol {
     Hey(String),
 }

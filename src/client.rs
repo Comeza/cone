@@ -2,12 +2,13 @@ use std::fmt::Display;
 use std::marker::PhantomData;
 use std::str::FromStr;
 
+use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
 use tokio::{io::BufStream, net::TcpStream};
 
-pub struct Client<P>
+pub struct Client< P>
 where
-    P: FromStr + Display,
+    P: Serialize + Deserialize<'static>,
 {
     stream: BufStream<TcpStream>,
     _pd: PhantomData<P>,
@@ -15,7 +16,7 @@ where
 
 impl<P> Client<P>
 where
-    P: FromStr + Display,
+    P: Serialize + Deserialize<'static>,
 {
     pub fn new(stream: BufStream<TcpStream>) -> Self {
         Self {

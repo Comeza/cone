@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt::Display, str::FromStr};
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
@@ -6,15 +7,15 @@ mod conman;
 mod ext;
 mod protocol;
 
-pub use tokio;
 pub use serde;
+pub use tokio;
 
 pub use client::*;
 pub use conman::*;
 
 pub struct Server<P>
 where
-    P: FromStr + Display,
+    P: Serialize + Deserialize<'static>,
 {
     clients: HashMap<u32, Client<P>>,
     receiver: UnboundedReceiver<ConmanSignal<P>>,
@@ -23,7 +24,7 @@ where
 
 impl<P> Server<P>
 where
-    P: FromStr + Display,
+    P: Serialize + Deserialize<'static>,
 {
     pub fn new() -> (UnboundedSender<ConmanSignal<P>>, Self) {
         let (sender, receiver) = mpsc::unbounded_channel();
