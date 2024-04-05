@@ -33,7 +33,7 @@ impl Display for Protocol {
 #[tokio::main]
 async fn main() {
     let (channel, server) = Server::<Protocol>::new();
-    let mut conman = Conman::new(channel);
+    let mut conman = Conman::new(channel, "Welcome to this example Server!".into());
 
     tokio::spawn(async move {
         if let Err(err) = conman.run("0.0.0.0:1312").await {

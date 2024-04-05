@@ -17,18 +17,22 @@ where
 
 pub struct Conman<P>
 where
-    P: FromStr + Display,
+    P: FromStr + Display + 'static,
 {
     channel: UnboundedSender<ConmanSignal<P>>,
     users: HashMap<String, String>,
+    motd: String,
+    enable_motd: bool,
 }
 
 impl<P> Conman<P>
 where
     P: FromStr + Display + Send + 'static,
 {
-    pub fn new(channel: UnboundedSender<ConmanSignal<P>>) -> Self {
+    pub fn new(channel: UnboundedSender<ConmanSignal<P>>, motd: String) -> Self {
         Self {
+            enable_motd: !motd.is_empty(),
+            motd,
             channel,
             users: HashMap::new(),
         }
@@ -47,17 +51,24 @@ where
 
     pub async fn run(self, addr: impl ToSocketAddrs) -> std::io::Result<()> {
         let listener = TcpListener::bind(addr).await?;
+        let enable_motd = self.enable_motd.clone();
+        let motd_line = format!("MOTD {}", self.motd.clone());
         let conman = Arc::new(Mutex::new(self));
 
         loop {
             let (stream, addr) = listener.accept().await?; // fix, do not use ? here
             let conman = conman.clone();
+            let enable_motd = enable_motd.clone();
+            let motd_line = motd_line.clone();
 
             let _ = tokio::spawn(async move {
                 if let Err(err) = tokio::time::timeout(Duration::from_secs(3), async move {
                     println!("New connection request from {addr}");
                     let stream = BufStream::new(stream);
                     let mut client = Client::<P>::new(stream);
+                    if enable_motd {
+                        client.writeln(&motd_line).await?;
+                    }
 
                     // This is not good! One client can just write nothing and starve all other requests
                     let next_line = client.read_next().await?;
