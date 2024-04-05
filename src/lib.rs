@@ -6,6 +6,9 @@ mod conman;
 mod ext;
 mod protocol;
 
+pub use tokio;
+pub use serde;
+
 pub use client::*;
 pub use conman::*;
 
