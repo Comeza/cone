@@ -1,4 +1,4 @@
-use std::{fmt::Display, str::FromStr};
+use std::{fmt::Display, str::FromStr, time::Duration};
 
 use cone::{Conman, Server};
 
@@ -33,7 +33,10 @@ impl Display for Protocol {
 #[tokio::main]
 async fn main() {
     let (channel, server) = Server::<Protocol>::new();
-    let mut conman = Conman::new(channel, "Welcome to this example Server!".into());
+
+    let conman = Conman::new(channel)
+        .with_motd(Some("Welcome to the example server!"))
+        .with_timeout(Duration::from_secs(10));
 
     tokio::spawn(async move {
         if let Err(err) = conman.run("0.0.0.0:1312").await {
@@ -43,4 +46,3 @@ async fn main() {
 
     loop {}
 }
-
