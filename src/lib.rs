@@ -4,6 +4,7 @@ use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 mod client;
 mod conman;
 mod ext;
+mod protocol;
 
 pub use client::*;
 pub use conman::*;
