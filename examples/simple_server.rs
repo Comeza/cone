@@ -34,7 +34,7 @@ impl Display for Protocol {
 
 #[tokio::main]
 async fn main() {
-    let (channel, server) = Server::<Protocol>::new();
+    let (channel, _server) = Server::<Protocol>::new();
 
     let conman = Conman::new(channel)
         .with_motd(Some("Welcome to the example server!"))
